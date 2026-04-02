@@ -76,7 +76,7 @@ export function Sidebar({
   const sidebarContent = (
     <div
       className="flex flex-col h-full"
-      style={{ background: "oklch(0.11 0 0)" }}
+      style={{ background: "oklch(var(--panel-sidebar, 0.11 0 0))" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-6 pb-4">
@@ -101,8 +101,8 @@ export function Sidebar({
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-md"
           style={{
-            background: "oklch(0.14 0 0)",
-            border: "1px solid oklch(0.20 0 0)",
+            background: "oklch(var(--muted, 0.14 0 0))",
+            border: "1px solid oklch(var(--border, 0.20 0 0))",
           }}
         >
           <Search size={13} className="text-muted-foreground flex-shrink-0" />
@@ -121,7 +121,7 @@ export function Sidebar({
       <div className="px-5 pb-2">
         <span
           className="text-[11px] font-semibold tracking-widest"
-          style={{ color: "oklch(0.50 0 0)" }}
+          style={{ color: "oklch(var(--muted-foreground, 0.50 0 0))" }}
         >
           DOCUMENTS
         </span>
@@ -133,7 +133,7 @@ export function Sidebar({
           {filtered.length === 0 ? (
             <div
               className="px-3 py-8 text-center text-[13px]"
-              style={{ color: "oklch(0.45 0 0)" }}
+              style={{ color: "oklch(var(--muted-foreground, 0.45 0 0))" }}
               data-ocid="sidebar.empty_state"
             >
               No documents found
@@ -150,18 +150,41 @@ export function Sidebar({
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
                   data-ocid={`sidebar.item.${i + 1}`}
+                  className="relative group mb-0.5"
                 >
+                  {/* Full-width click target for row selection */}
+                  {!isRenaming && (
+                    <button
+                      type="button"
+                      aria-label={`Select ${doc.title}`}
+                      className="absolute inset-0 rounded-md cursor-pointer"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        zIndex: 0,
+                      }}
+                      onClick={() => {
+                        onSelectDoc(doc.id);
+                        onMobileClose?.();
+                      }}
+                      data-ocid={"sidebar.button"}
+                    />
+                  )}
+
+                  {/* Card row layout */}
                   <div
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-md mb-0.5 group transition-colors relative"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-md transition-colors"
                     style={{
                       background: isActive
-                        ? "oklch(0.71 0.19 142)"
+                        ? "oklch(var(--row-active, 0.71 0.19 142))"
                         : "transparent",
+                      userSelect: "none",
+                      position: "relative",
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive)
                         (e.currentTarget as HTMLDivElement).style.background =
-                          "oklch(0.16 0 0)";
+                          "oklch(var(--row-hover, 0.16 0 0))";
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive)
@@ -169,31 +192,16 @@ export function Sidebar({
                           "transparent";
                     }}
                   >
-                    {/* Invisible full-width button for row selection */}
-                    {!isRenaming && (
-                      <button
-                        type="button"
-                        aria-label={`Select ${doc.title}`}
-                        className="absolute inset-0 w-full h-full"
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          zIndex: 0,
-                        }}
-                        onClick={() => {
-                          onSelectDoc(doc.id);
-                          onMobileClose?.();
-                        }}
-                      />
-                    )}
                     <FileText
                       size={14}
                       className="flex-shrink-0"
                       style={{
-                        color: isActive ? "oklch(0.08 0 0)" : "oklch(0.55 0 0)",
+                        color: isActive
+                          ? "oklch(0.08 0 0)"
+                          : "oklch(var(--muted-foreground, 0.55 0 0))",
                         position: "relative",
                         zIndex: 1,
+                        pointerEvents: "none",
                       }}
                     />
                     <div
@@ -229,7 +237,7 @@ export function Sidebar({
                             style={{
                               color: isActive
                                 ? "oklch(0.08 0 0)"
-                                : "oklch(0.92 0 0)",
+                                : "oklch(var(--foreground, 0.92 0 0))",
                             }}
                           >
                             {doc.title}
@@ -239,7 +247,7 @@ export function Sidebar({
                             style={{
                               color: isActive
                                 ? "oklch(0.15 0.04 142)"
-                                : "oklch(0.52 0 0)",
+                                : "oklch(var(--muted-foreground, 0.52 0 0))",
                             }}
                           >
                             {doc.mode === "screenplay" ? "Screenplay" : "Novel"}
@@ -248,9 +256,15 @@ export function Sidebar({
                       )}
                     </div>
 
-                    {/* 3-dot menu */}
+                    {/* 3-dot menu — stops propagation so card click still fires */}
                     {!isRenaming && (
-                      <div style={{ position: "relative", zIndex: 2 }}>
+                      <div
+                        style={{
+                          position: "relative",
+                          zIndex: 2,
+                          flexShrink: 0,
+                        }}
+                      >
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -293,10 +307,7 @@ export function Sidebar({
                             data-ocid="sidebar.dropdown_menu"
                           >
                             <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startRename(doc);
-                              }}
+                              onClick={() => startRename(doc)}
                               className="text-[12px] cursor-pointer gap-2"
                               style={{ color: "oklch(0.80 0 0)" }}
                               data-ocid="sidebar.button"
@@ -307,10 +318,7 @@ export function Sidebar({
                               style={{ background: "oklch(0.20 0 0)" }}
                             />
                             <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onExportPdf(doc.id);
-                              }}
+                              onClick={() => onExportPdf(doc.id)}
                               className="text-[12px] cursor-pointer gap-2"
                               style={{ color: "oklch(0.80 0 0)" }}
                               data-ocid="sidebar.button"
@@ -318,10 +326,7 @@ export function Sidebar({
                               <Download size={12} /> Export as PDF
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onExportTxt(doc.id);
-                              }}
+                              onClick={() => onExportTxt(doc.id)}
                               className="text-[12px] cursor-pointer gap-2"
                               style={{ color: "oklch(0.80 0 0)" }}
                               data-ocid="sidebar.button"
@@ -332,10 +337,7 @@ export function Sidebar({
                               style={{ background: "oklch(0.20 0 0)" }}
                             />
                             <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteDoc(doc.id);
-                              }}
+                              onClick={() => onDeleteDoc(doc.id)}
                               className="text-[12px] cursor-pointer gap-2"
                               style={{ color: "oklch(0.65 0.22 20)" }}
                               data-ocid={`sidebar.delete_button.${i + 1}`}
@@ -357,20 +359,20 @@ export function Sidebar({
       {/* New document + Link Folder buttons */}
       <div
         className="px-4 py-4"
-        style={{ borderTop: "1px solid oklch(0.18 0 0)" }}
+        style={{ borderTop: "1px solid oklch(var(--border, 0.18 0 0))" }}
       >
         <button
           type="button"
           onClick={onNewDoc}
           className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-[13px] font-semibold transition-colors"
           style={{
-            border: "1px solid oklch(0.28 0 0)",
-            color: "oklch(0.75 0 0)",
+            border: "1px solid oklch(var(--border, 0.28 0 0))",
+            color: "oklch(var(--muted-foreground, 0.75 0 0))",
             background: "transparent",
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
-              "oklch(0.16 0 0)";
+              "oklch(var(--row-hover, 0.16 0 0))";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.background =
@@ -391,21 +393,23 @@ export function Sidebar({
             style={{
               border: isLinked
                 ? "1px solid oklch(var(--primary) / 30%)"
-                : "1px solid oklch(0.22 0 0)",
-              color: isLinked ? "oklch(var(--primary))" : "oklch(0.55 0 0)",
+                : "1px solid oklch(var(--border, 0.22 0 0))",
+              color: isLinked
+                ? "oklch(var(--primary))"
+                : "oklch(var(--muted-foreground, 0.55 0 0))",
               background: isLinked
                 ? "oklch(var(--primary) / 8%)"
-                : "oklch(0.14 0 0)",
+                : "oklch(var(--muted, 0.14 0 0))",
             }}
             onMouseEnter={(e) => {
               if (!isLinked)
                 (e.currentTarget as HTMLButtonElement).style.background =
-                  "oklch(0.17 0 0)";
+                  "oklch(var(--row-hover, 0.17 0 0))";
             }}
             onMouseLeave={(e) => {
               if (!isLinked)
                 (e.currentTarget as HTMLButtonElement).style.background =
-                  "oklch(0.14 0 0)";
+                  "oklch(var(--muted, 0.14 0 0))";
             }}
             data-ocid="sidebar.button"
           >
@@ -421,7 +425,7 @@ export function Sidebar({
     <>
       <aside
         className="hidden md:flex flex-col w-[280px] flex-shrink-0 h-full"
-        style={{ borderRight: "1px solid oklch(0.17 0 0)" }}
+        style={{ borderRight: "1px solid oklch(var(--border, 0.17 0 0))" }}
         data-ocid="sidebar.panel"
       >
         {sidebarContent}

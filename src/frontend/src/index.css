@@ -238,7 +238,9 @@
     --panel-editor: 1 0 0;
     --panel-bottom: 0.93 0 0;
     --row-active: 0.45 0.22 255;
+    --row-hover: 0.93 0 0;
     --scrollbar-thumb: 0.8 0 0;
+    color-scheme: light;
   }
 
   * {

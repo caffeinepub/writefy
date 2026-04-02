@@ -26,6 +26,18 @@ import {
   extractCharactersFromLines,
   generatePrintHTML,
 } from "./utils/scriptUtils";
+import {
+  type SyncStatus,
+  debounce,
+  loadFromIDB,
+  readFromFolder,
+  requestFolder,
+  saveToFolder,
+  saveToIDB,
+} from "./utils/storage";
+
+const BACKUP_KEY = "writefy_backup";
+const BACKUP_FILENAME = "writefy-backup.json";
 
 function computeReadTime(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -46,6 +58,11 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [outlinerOpen, setOutlinerOpen] = useState(false);
   const [stickyKeyboard, setStickyKeyboard] = useState(false);
+
+  // Dual-layer storage state
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [folderHandle, setFolderHandle] =
+    useState<FileSystemDirectoryHandle | null>(null);
 
   // Glow settings
   const [glowIntensity, setGlowIntensityState] = useState<number>(() =>
@@ -116,7 +133,124 @@ export default function App() {
 
   const metrics = useWritingMetrics(wordCount);
 
-  // ── Hard-save interval: every 60s ──
+  // ── Dual-Layer Auto-Save (debounced 2s) ────────────────────────
+  const debouncedSaveRef = useRef<((...args: any[]) => void) | null>(null);
+
+  useEffect(() => {
+    debouncedSaveRef.current = debounce(
+      async (
+        docs: typeof documents,
+        currentDocId: string,
+        handle: FileSystemDirectoryHandle | null,
+      ) => {
+        if (!docs || docs.length === 0) {
+          // Anti-corruption: abort if empty
+          const existingIDB = await loadFromIDB<object>(BACKUP_KEY);
+          if (existingIDB) {
+            toast.error(
+              "Save aborted: data appears empty. Previous save preserved.",
+            );
+            setSyncStatus("error");
+            return;
+          }
+        }
+
+        const payload = {
+          projects: docs,
+          currentProjectId: currentDocId,
+          lastModified: new Date().toISOString(),
+        };
+
+        // Layer 1: IndexedDB
+        try {
+          await saveToIDB(BACKUP_KEY, payload);
+          setSyncStatus("memory");
+          setLastSaved(new Date());
+        } catch {
+          setSyncStatus("error");
+          return;
+        }
+
+        // Layer 2: File System Access API (if folder is linked)
+        if (handle) {
+          try {
+            const ok = await saveToFolder(
+              handle,
+              BACKUP_FILENAME,
+              JSON.stringify(payload, null, 2),
+            );
+            if (ok) {
+              setSyncStatus("saved");
+            } else {
+              setSyncStatus("error");
+            }
+          } catch {
+            setSyncStatus("error");
+          }
+        }
+      },
+      2000,
+    );
+  }, []);
+
+  // Trigger debounced save when documents change
+  useEffect(() => {
+    if (documents.length === 0) return;
+    debouncedSaveRef.current?.(documents, activeDocId, folderHandle);
+  }, [documents, activeDocId, folderHandle]);
+
+  // ── Safe-Load on mount: File > IDB > localStorage ─────────
+  // Note: localStorage is already handled by useDocuments’s useLocalStorage hook.
+  // We additionally try to restore from IDB on first load if IDB has data newer than LS.
+  useEffect(() => {
+    (async () => {
+      try {
+        const idbData = await loadFromIDB<{
+          projects: any[];
+          currentProjectId: string;
+          lastModified: string;
+        }>(BACKUP_KEY);
+
+        if (!idbData || !idbData.projects || idbData.projects.length === 0)
+          return;
+
+        const lsRaw = localStorage.getItem("writefy_documents");
+        const lsUpdated = lsRaw
+          ? (() => {
+              try {
+                const docs = JSON.parse(lsRaw) as Array<{ updatedAt?: string }>;
+                return docs[0]?.updatedAt ?? null;
+              } catch {
+                return null;
+              }
+            })()
+          : null;
+
+        const idbUpdated = idbData.lastModified;
+
+        // Only restore from IDB if it has newer data
+        if (idbUpdated && lsUpdated && idbUpdated > lsUpdated) {
+          localStorage.setItem(
+            "writefy_documents",
+            JSON.stringify(idbData.projects),
+          );
+          if (idbData.currentProjectId) {
+            localStorage.setItem(
+              "writefy_active_doc",
+              JSON.stringify(idbData.currentProjectId),
+            );
+          }
+          // Force a reload to pick up the new localStorage values
+          window.location.reload();
+        }
+      } catch {
+        // Silent failure — fall back to localStorage
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Hard-save interval: every 60s ────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       if (activeDocument) {
@@ -129,7 +263,79 @@ export default function App() {
     return () => clearInterval(interval);
   }, [activeDocument, updateDocument]);
 
-  // ── Export helpers ──
+  // ── Export/Import Backup ──────────────────────────────
+  const exportBackup = useCallback(() => {
+    if (!documents || documents.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
+    const payload = {
+      projects: documents,
+      currentProjectId: activeDocId,
+      lastModified: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = window.document.createElement("a");
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    a.href = url;
+    a.download = `writefy-backup-${ts}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Backup exported");
+  }, [documents, activeDocId]);
+
+  const importBackup = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const data = JSON.parse(text);
+        if (
+          !data.projects ||
+          !Array.isArray(data.projects) ||
+          data.projects.length === 0
+        ) {
+          toast.error("Invalid backup file: no projects found");
+          return;
+        }
+        localStorage.setItem(
+          "writefy_documents",
+          JSON.stringify(data.projects),
+        );
+        if (data.currentProjectId) {
+          localStorage.setItem(
+            "writefy_active_doc",
+            JSON.stringify(data.currentProjectId),
+          );
+        }
+        toast.success("Backup imported — reloading...");
+        setTimeout(() => window.location.reload(), 800);
+      } catch {
+        toast.error("Failed to parse backup file");
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  // ── Link Folder (dual-layer handle) ───────────────────────
+  const handleLinkFolder = useCallback(async () => {
+    // Try storage utility first (for dual-layer handle)
+    const handle = await requestFolder();
+    if (handle) {
+      setFolderHandle(handle);
+      // Also update the legacy fileSystem hook for per-file saves
+      await fileSystem.requestFolder();
+      toast.success(`Linked to folder: ${handle.name}`);
+      if (activeDocument) {
+        fileSystem.saveFile(activeDocument.title, activeDocument.content);
+      }
+    }
+  }, [fileSystem, activeDocument]);
+
+  // ── Export helpers ─────────────────────────────────────
   const handleExportTxt = useCallback(
     (docId?: string) => {
       const doc = docId
@@ -188,7 +394,7 @@ export default function App() {
     [documents, activeDocument],
   );
 
-  // ── Content handlers ──
+  // ── Content handlers ───────────────────────────────────
   const handleContentChange = useCallback(
     (content: string) => {
       if (!activeDocument) return;
@@ -267,17 +473,7 @@ export default function App() {
     }
   }, [createDocument, fileSystem]);
 
-  const handleLinkFolder = useCallback(async () => {
-    await fileSystem.requestFolder();
-    if (fileSystem.folderName) {
-      toast.success(`Linked to folder: ${fileSystem.folderName}`);
-      if (activeDocument) {
-        fileSystem.saveFile(activeDocument.title, activeDocument.content);
-      }
-    }
-  }, [fileSystem, activeDocument]);
-
-  // ── Delete flow ──
+  // ── Delete flow ────────────────────────────────────────
   const openDeleteDialog = useCallback(
     (id: string) => {
       if (documents.length <= 1) {
@@ -314,18 +510,23 @@ export default function App() {
     [documents, pendingDeleteId],
   );
 
+  const isDay = activeTheme === "high-contrast-day";
+
   return (
     <div
       className="flex flex-col h-screen overflow-hidden"
-      style={{ background: "oklch(0.08 0 0)" }}
+      style={{
+        background: isDay ? "#ffffff" : "oklch(0.08 0 0)",
+        color: isDay ? "#111111" : undefined,
+      }}
     >
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
-            background: "oklch(0.16 0 0)",
-            color: "oklch(0.90 0 0)",
-            border: "1px solid oklch(0.22 0 0)",
+            background: isDay ? "#ffffff" : "oklch(0.16 0 0)",
+            color: isDay ? "#111111" : "oklch(0.90 0 0)",
+            border: isDay ? "1px solid #dddddd" : "1px solid oklch(0.22 0 0)",
           },
         }}
       />
@@ -334,10 +535,11 @@ export default function App() {
         onMenuToggle={() => setIsMobileMenuOpen((p) => !p)}
         isMobileMenuOpen={isMobileMenuOpen}
         onSettingsOpen={() => setIsSettingsOpen(true)}
-        folderName={fileSystem.folderName}
+        folderName={fileSystem.folderName ?? folderHandle?.name ?? null}
         isFileSystemSupported={fileSystem.isSupported}
         onLinkFolder={handleLinkFolder}
         lastSaved={lastSaved}
+        syncStatus={syncStatus}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -356,8 +558,8 @@ export default function App() {
           isMobileOpen={isMobileMenuOpen}
           onMobileClose={() => setIsMobileMenuOpen(false)}
           isFileSystemSupported={fileSystem.isSupported}
-          isLinked={fileSystem.isLinked}
-          folderName={fileSystem.folderName}
+          isLinked={fileSystem.isLinked || !!folderHandle}
+          folderName={fileSystem.folderName ?? folderHandle?.name ?? null}
           onLinkFolder={handleLinkFolder}
         />
 
@@ -455,18 +657,21 @@ export default function App() {
       <div
         className="flex-shrink-0 flex items-center justify-center py-1"
         style={{
-          background: "oklch(0.07 0 0)",
-          borderTop: "1px solid oklch(0.13 0 0)",
+          background: isDay ? "#f4f4f4" : "oklch(0.07 0 0)",
+          borderTop: isDay ? "1px solid #e0e0e0" : "1px solid oklch(0.13 0 0)",
         }}
       >
-        <p className="text-[10px]" style={{ color: "oklch(0.32 0 0)" }}>
+        <p
+          className="text-[10px]"
+          style={{ color: isDay ? "#888" : "oklch(0.32 0 0)" }}
+        >
           © {new Date().getFullYear()}. Built with ❤️ using{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline transition-colors"
-            style={{ color: "oklch(0.45 0 0)" }}
+            style={{ color: isDay ? "#1565C0" : "oklch(0.45 0 0)" }}
           >
             caffeine.ai
           </a>
@@ -486,6 +691,11 @@ export default function App() {
         onSetGlowColor={setGlowColor}
         glowTransparency={glowTransparency}
         onSetGlowTransparency={setGlowTransparency}
+        onExportBackup={exportBackup}
+        onImportBackup={importBackup}
+        onLinkFolder={handleLinkFolder}
+        folderName={fileSystem.folderName ?? folderHandle?.name ?? null}
+        isFileSystemSupported={fileSystem.isSupported}
       />
 
       {/* Safety Delete Dialog */}
@@ -497,19 +707,23 @@ export default function App() {
       >
         <DialogContent
           style={{
-            background: "oklch(0.12 0 0)",
-            border: "1px solid oklch(0.22 0 0)",
-            color: "oklch(0.92 0 0)",
+            background: isDay ? "#ffffff" : "oklch(0.12 0 0)",
+            border: isDay ? "1px solid #dddddd" : "1px solid oklch(0.22 0 0)",
+            color: isDay ? "#111111" : "oklch(0.92 0 0)",
           }}
           data-ocid="sidebar.dialog"
         >
           {deleteStep === 1 ? (
             <>
               <DialogHeader>
-                <DialogTitle style={{ color: "oklch(0.92 0 0)" }}>
+                <DialogTitle
+                  style={{ color: isDay ? "#111111" : "oklch(0.92 0 0)" }}
+                >
                   Delete "{pendingDeleteTitle}"?
                 </DialogTitle>
-                <DialogDescription style={{ color: "oklch(0.55 0 0)" }}>
+                <DialogDescription
+                  style={{ color: isDay ? "#666666" : "oklch(0.55 0 0)" }}
+                >
                   This script will be permanently removed. This action cannot be
                   undone.
                 </DialogDescription>
@@ -520,9 +734,11 @@ export default function App() {
                   onClick={closeDeleteDialog}
                   className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors"
                   style={{
-                    background: "oklch(0.18 0 0)",
-                    color: "oklch(0.75 0 0)",
-                    border: "1px solid oklch(0.26 0 0)",
+                    background: isDay ? "#f0f0f0" : "oklch(0.18 0 0)",
+                    color: isDay ? "#444444" : "oklch(0.75 0 0)",
+                    border: isDay
+                      ? "1px solid #dddddd"
+                      : "1px solid oklch(0.26 0 0)",
                   }}
                   data-ocid="sidebar.cancel_button"
                 >
@@ -548,11 +764,13 @@ export default function App() {
                 <DialogTitle style={{ color: "oklch(0.65 0.22 20)" }}>
                   Final Confirmation
                 </DialogTitle>
-                <DialogDescription style={{ color: "oklch(0.55 0 0)" }}>
+                <DialogDescription
+                  style={{ color: isDay ? "#666666" : "oklch(0.55 0 0)" }}
+                >
                   Type{" "}
                   <span
                     className="font-bold font-mono"
-                    style={{ color: "oklch(0.85 0 0)" }}
+                    style={{ color: isDay ? "#111111" : "oklch(0.85 0 0)" }}
                   >
                     DELETE
                   </span>{" "}
@@ -567,13 +785,15 @@ export default function App() {
                   placeholder="Type DELETE here"
                   className="w-full px-3 py-2 rounded-md text-[13px] font-mono"
                   style={{
-                    background: "oklch(0.09 0 0)",
+                    background: isDay ? "#f8f8f8" : "oklch(0.09 0 0)",
                     border: `1px solid ${
                       deleteConfirmText === "DELETE"
                         ? "oklch(0.65 0.22 20)"
-                        : "oklch(0.25 0 0)"
+                        : isDay
+                          ? "#dddddd"
+                          : "oklch(0.25 0 0)"
                     }`,
-                    color: "oklch(0.92 0 0)",
+                    color: isDay ? "#111111" : "oklch(0.92 0 0)",
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && deleteConfirmText === "DELETE")
@@ -588,9 +808,11 @@ export default function App() {
                   onClick={closeDeleteDialog}
                   className="px-4 py-2 rounded-md text-[13px] font-medium transition-colors"
                   style={{
-                    background: "oklch(0.18 0 0)",
-                    color: "oklch(0.75 0 0)",
-                    border: "1px solid oklch(0.26 0 0)",
+                    background: isDay ? "#f0f0f0" : "oklch(0.18 0 0)",
+                    color: isDay ? "#444444" : "oklch(0.75 0 0)",
+                    border: isDay
+                      ? "1px solid #dddddd"
+                      : "1px solid oklch(0.26 0 0)",
                   }}
                   data-ocid="sidebar.cancel_button"
                 >
@@ -605,11 +827,15 @@ export default function App() {
                     background:
                       deleteConfirmText === "DELETE"
                         ? "oklch(0.55 0.22 20)"
-                        : "oklch(0.20 0 0)",
+                        : isDay
+                          ? "#e8e8e8"
+                          : "oklch(0.20 0 0)",
                     color:
                       deleteConfirmText === "DELETE"
                         ? "oklch(0.97 0 0)"
-                        : "oklch(0.38 0 0)",
+                        : isDay
+                          ? "#aaaaaa"
+                          : "oklch(0.38 0 0)",
                     cursor:
                       deleteConfirmText === "DELETE"
                         ? "pointer"

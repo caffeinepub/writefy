@@ -1,4 +1,5 @@
 import { FolderOpen, Menu, Settings, Unlink } from "lucide-react";
+import type { SyncStatus } from "../utils/storage";
 
 interface TopBarProps {
   onMenuToggle: () => void;
@@ -8,6 +9,76 @@ interface TopBarProps {
   isFileSystemSupported?: boolean;
   onLinkFolder?: () => void;
   lastSaved?: Date | null;
+  syncStatus?: SyncStatus;
+}
+
+function SyncDot({ status }: { status: SyncStatus }) {
+  if (status === "idle") {
+    return (
+      <span
+        title="No changes"
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: "oklch(0.40 0 0)",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  if (status === "saved") {
+    return (
+      <span
+        title="Saved to local folder"
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: "#22c55e",
+          boxShadow: "0 0 6px 2px #22c55e88",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  if (status === "memory") {
+    return (
+      <span
+        title="Saved to browser memory"
+        style={{
+          display: "inline-block",
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: "#eab308",
+          boxShadow: "0 0 6px 2px #eab30888",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  // error — pulsing red
+  return (
+    <span
+      title="Save failed — check folder permissions"
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: "#ef4444",
+        boxShadow: "0 0 6px 2px #ef444488",
+        flexShrink: 0,
+        animation: "sync-pulse 1.2s ease-in-out infinite",
+      }}
+    />
+  );
 }
 
 export function TopBar({
@@ -17,19 +88,28 @@ export function TopBar({
   isFileSystemSupported,
   onLinkFolder,
   lastSaved,
+  syncStatus = "idle",
 }: TopBarProps) {
   return (
     <header
       className="flex-shrink-0 flex items-center justify-between px-4 md:px-6"
       style={{
         height: "56px",
-        background: "oklch(0.09 0 0)",
-        borderBottom: "1px solid oklch(0.15 0 0)",
+        background: "oklch(var(--background, 0.09 0 0))",
+        borderBottom: "1px solid oklch(var(--border, 0.15 0 0))",
         zIndex: 30,
         position: "relative",
       }}
       data-ocid="nav.panel"
     >
+      {/* pulse animation */}
+      <style>{`
+        @keyframes sync-pulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 6px 2px #ef444488; }
+          50% { opacity: 0.5; box-shadow: 0 0 2px 1px #ef444444; }
+        }
+      `}</style>
+
       {/* Left: hamburger (mobile) + logo */}
       <div className="flex items-center gap-3">
         <button
@@ -57,7 +137,7 @@ export function TopBar({
           </div>
           <span
             className="text-[16px] font-bold tracking-tight"
-            style={{ color: "oklch(0.95 0 0)" }}
+            style={{ color: "oklch(var(--foreground, 0.95 0 0))" }}
           >
             Writefy
           </span>
@@ -72,7 +152,10 @@ export function TopBar({
             key={item}
             className="text-[13px] font-medium transition-colors"
             style={{
-              color: item === "Editor" ? "oklch(0.90 0 0)" : "oklch(0.50 0 0)",
+              color:
+                item === "Editor"
+                  ? "oklch(var(--foreground, 0.90 0 0))"
+                  : "oklch(var(--muted-foreground, 0.50 0 0))",
             }}
             data-ocid="nav.link"
           >
@@ -81,8 +164,36 @@ export function TopBar({
         ))}
       </nav>
 
-      {/* Right: last-saved + folder status + settings */}
+      {/* Right: sync dot + last-saved + folder status + settings */}
       <div className="flex items-center gap-2">
+        {/* Sync status dot */}
+        <div
+          className="flex items-center gap-1.5"
+          title={
+            syncStatus === "saved"
+              ? "Synced to local folder"
+              : syncStatus === "memory"
+                ? "Saved to browser (no folder linked)"
+                : syncStatus === "error"
+                  ? "Save error"
+                  : "Idle"
+          }
+        >
+          <SyncDot status={syncStatus} />
+          <span
+            className="hidden md:inline text-[9px] font-semibold uppercase tracking-wider"
+            style={{ color: "oklch(0.38 0 0)" }}
+          >
+            {syncStatus === "saved"
+              ? "Synced"
+              : syncStatus === "memory"
+                ? "Memory"
+                : syncStatus === "error"
+                  ? "Error"
+                  : "Idle"}
+          </span>
+        </div>
+
         {/* Last Saved timestamp */}
         {lastSaved && (
           <span
@@ -116,11 +227,13 @@ export function TopBar({
             style={{
               background: folderName
                 ? "oklch(var(--primary) / 15%)"
-                : "oklch(0.14 0 0)",
-              color: folderName ? "oklch(var(--primary))" : "oklch(0.50 0 0)",
+                : "oklch(var(--muted, 0.14 0 0))",
+              color: folderName
+                ? "oklch(var(--primary))"
+                : "oklch(var(--muted-foreground, 0.50 0 0))",
               border: folderName
                 ? "1px solid oklch(var(--primary) / 30%)"
-                : "1px solid oklch(0.22 0 0)",
+                : "1px solid oklch(var(--border, 0.22 0 0))",
             }}
             title={
               folderName
@@ -147,16 +260,16 @@ export function TopBar({
           type="button"
           onClick={onSettingsOpen}
           className="p-2 rounded-md transition-colors"
-          style={{ color: "oklch(0.50 0 0)" }}
+          style={{ color: "oklch(var(--muted-foreground, 0.50 0 0))" }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color =
-              "oklch(0.80 0 0)";
+              "oklch(var(--foreground, 0.80 0 0))";
             (e.currentTarget as HTMLButtonElement).style.background =
-              "oklch(0.15 0 0)";
+              "oklch(var(--muted, 0.15 0 0))";
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.color =
-              "oklch(0.50 0 0)";
+              "oklch(var(--muted-foreground, 0.50 0 0))";
             (e.currentTarget as HTMLButtonElement).style.background =
               "transparent";
           }}
