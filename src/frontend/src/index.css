@@ -1,0 +1,370 @@
+/* Courier Prime — Google Fonts fallback for screenplay mode */
+@import url("https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "GeneralSans";
+  src: url("/assets/fonts/GeneralSans.woff2") format("woff2");
+  font-weight: 200 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  /* ============================================
+     DEFAULT THEME: Spotify Green
+     ============================================ */
+  :root {
+    --radius: 0.5rem;
+    --background: 0.08 0 0;
+    --foreground: 0.95 0 0;
+    --card: 0.11 0 0;
+    --card-foreground: 0.95 0 0;
+    --popover: 0.14 0 0;
+    --popover-foreground: 0.95 0 0;
+    --primary: 0.71 0.19 142;
+    --primary-foreground: 0.08 0 0;
+    --secondary: 0.16 0 0;
+    --secondary-foreground: 0.95 0 0;
+    --muted: 0.16 0 0;
+    --muted-foreground: 0.6 0 0;
+    --accent: 0.18 0 0;
+    --accent-foreground: 0.95 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.2 0 0;
+    --input: 0.13 0 0;
+    --ring: 0.71 0.19 142;
+    --spotify-green: 0.71 0.19 142;
+    --spotify-green-bright: 0.74 0.2 142;
+    --panel-sidebar: 0.11 0 0;
+    --panel-editor: 0.125 0 0;
+    --panel-bottom: 0.09 0 0;
+    --row-hover: 0.16 0 0;
+    --row-active: 0.71 0.19 142;
+    --scrollbar-thumb: 0.25 0 0;
+    --chart-1: 0.488 0.243 264.376;
+    --chart-2: 0.696 0.17 162.48;
+    --chart-3: 0.769 0.188 70.08;
+    --chart-4: 0.627 0.265 303.9;
+    --chart-5: 0.645 0.246 16.439;
+    --sidebar: 0.11 0 0;
+    --sidebar-foreground: 0.95 0 0;
+    --sidebar-primary: 0.71 0.19 142;
+    --sidebar-primary-foreground: 0.08 0 0;
+    --sidebar-accent: 0.16 0 0;
+    --sidebar-accent-foreground: 0.95 0 0;
+    --sidebar-border: 0.2 0 0;
+    --sidebar-ring: 0.71 0.19 142;
+  }
+
+  /* ============================================
+     THEME OVERRIDES
+     ============================================ */
+  [data-theme="midnight-purple"] {
+    --primary: 0.68 0.22 295;
+    --primary-foreground: 0.97 0 0;
+    --background: 0.07 0.02 280;
+    --card: 0.1 0.02 280;
+    --panel-sidebar: 0.1 0.02 280;
+    --panel-editor: 0.12 0.02 280;
+    --panel-bottom: 0.08 0.01 280;
+    --row-active: 0.68 0.22 295;
+    --ring: 0.68 0.22 295;
+    --border: 0.2 0.01 280;
+    --scrollbar-thumb: 0.2 0.02 280;
+  }
+
+  [data-theme="royal-gold"] {
+    --primary: 0.78 0.18 80;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.08 0.01 60;
+    --card: 0.11 0.01 60;
+    --panel-sidebar: 0.11 0.01 60;
+    --panel-editor: 0.13 0.01 60;
+    --panel-bottom: 0.09 0.01 60;
+    --row-active: 0.78 0.18 80;
+    --ring: 0.78 0.18 80;
+    --border: 0.2 0.01 60;
+    --scrollbar-thumb: 0.22 0.01 60;
+  }
+
+  [data-theme="ethereal-ink"] {
+    --primary: 0.72 0.14 220;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.07 0.02 230;
+    --card: 0.1 0.02 230;
+    --panel-sidebar: 0.1 0.02 230;
+    --panel-editor: 0.12 0.02 230;
+    --panel-bottom: 0.08 0.01 230;
+    --row-active: 0.72 0.14 220;
+    --ring: 0.72 0.14 220;
+    --border: 0.2 0.02 230;
+    --scrollbar-thumb: 0.2 0.02 220;
+  }
+
+  [data-theme="winter-tree-grey"] {
+    --primary: 0.75 0.02 220;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.09 0 0;
+    --card: 0.12 0 0;
+    --panel-sidebar: 0.12 0 0;
+    --panel-editor: 0.14 0 0;
+    --panel-bottom: 0.1 0 0;
+    --row-active: 0.75 0.02 220;
+    --ring: 0.75 0.02 220;
+    --border: 0.22 0 0;
+    --scrollbar-thumb: 0.26 0 0;
+  }
+
+  [data-theme="obsidian"] {
+    --primary: 0.65 0.1 30;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.06 0 0;
+    --card: 0.09 0 0;
+    --panel-sidebar: 0.09 0 0;
+    --panel-editor: 0.11 0 0;
+    --panel-bottom: 0.07 0 0;
+    --row-active: 0.65 0.1 30;
+    --ring: 0.65 0.1 30;
+    --border: 0.18 0.01 30;
+    --scrollbar-thumb: 0.2 0.01 30;
+  }
+
+  [data-theme="solar-flare"] {
+    --primary: 0.75 0.2 50;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.08 0.01 40;
+    --card: 0.11 0.01 40;
+    --panel-sidebar: 0.11 0.01 40;
+    --panel-editor: 0.13 0.01 40;
+    --panel-bottom: 0.09 0.01 40;
+    --row-active: 0.75 0.2 50;
+    --ring: 0.75 0.2 50;
+    --border: 0.2 0.01 40;
+    --scrollbar-thumb: 0.22 0.01 40;
+  }
+
+  [data-theme="deep-sea"] {
+    --primary: 0.68 0.16 200;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.07 0.02 210;
+    --card: 0.1 0.02 210;
+    --panel-sidebar: 0.1 0.02 210;
+    --panel-editor: 0.12 0.02 210;
+    --panel-bottom: 0.08 0.01 210;
+    --row-active: 0.68 0.16 200;
+    --ring: 0.68 0.16 200;
+    --border: 0.2 0.02 210;
+    --scrollbar-thumb: 0.2 0.02 200;
+  }
+
+  [data-theme="sahara-sand"] {
+    --primary: 0.8 0.12 90;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.09 0.01 70;
+    --card: 0.12 0.01 70;
+    --panel-sidebar: 0.12 0.01 70;
+    --panel-editor: 0.14 0.01 70;
+    --panel-bottom: 0.1 0.01 70;
+    --row-active: 0.8 0.12 90;
+    --ring: 0.8 0.12 90;
+    --border: 0.22 0.01 70;
+    --scrollbar-thumb: 0.24 0.01 70;
+  }
+
+  [data-theme="nordic-frost"] {
+    --primary: 0.82 0.08 200;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.09 0.01 200;
+    --card: 0.12 0.01 200;
+    --panel-sidebar: 0.12 0.01 200;
+    --panel-editor: 0.14 0.01 200;
+    --panel-bottom: 0.1 0.01 200;
+    --row-active: 0.82 0.08 200;
+    --ring: 0.82 0.08 200;
+    --border: 0.22 0.01 200;
+    --scrollbar-thumb: 0.24 0.01 200;
+  }
+
+  [data-theme="crimson-velvet"] {
+    --primary: 0.65 0.22 20;
+    --primary-foreground: 0.97 0 0;
+    --background: 0.07 0.01 10;
+    --card: 0.1 0.01 10;
+    --panel-sidebar: 0.1 0.01 10;
+    --panel-editor: 0.12 0.01 10;
+    --panel-bottom: 0.08 0.01 10;
+    --row-active: 0.65 0.22 20;
+    --ring: 0.65 0.22 20;
+    --border: 0.2 0.01 10;
+    --scrollbar-thumb: 0.2 0.01 10;
+  }
+
+  [data-theme="cyber-neon"] {
+    --primary: 0.85 0.25 160;
+    --primary-foreground: 0.06 0 0;
+    --background: 0.06 0.02 160;
+    --card: 0.09 0.02 160;
+    --panel-sidebar: 0.09 0.02 160;
+    --panel-editor: 0.11 0.02 160;
+    --panel-bottom: 0.07 0.01 160;
+    --row-active: 0.85 0.25 160;
+    --ring: 0.85 0.25 160;
+    --border: 0.18 0.02 160;
+    --scrollbar-thumb: 0.2 0.02 160;
+  }
+
+  [data-theme="high-contrast-day"] {
+    --primary: 0.45 0.22 255;
+    --primary-foreground: 1 0 0;
+    --background: 1 0 0;
+    --foreground: 0.05 0 0;
+    --card: 0.97 0 0;
+    --card-foreground: 0.05 0 0;
+    --popover: 0.95 0 0;
+    --popover-foreground: 0.05 0 0;
+    --muted: 0.92 0 0;
+    --muted-foreground: 0.4 0 0;
+    --accent: 0.9 0 0;
+    --accent-foreground: 0.05 0 0;
+    --border: 0.85 0 0;
+    --input: 0.95 0 0;
+    --ring: 0.45 0.22 255;
+    --panel-sidebar: 0.95 0 0;
+    --panel-editor: 1 0 0;
+    --panel-bottom: 0.93 0 0;
+    --row-active: 0.45 0.22 255;
+    --scrollbar-thumb: 0.8 0 0;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "GeneralSans", system-ui, -apple-system, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  #root {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Screenplay class formatting */
+  .screenplay-slugline {
+    font-family: "Courier Prime", "Courier New", Courier, monospace;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .screenplay-action {
+    font-family: "Courier Prime", "Courier New", Courier, monospace;
+    text-transform: none;
+  }
+
+  .screenplay-character {
+    font-family: "Courier Prime", "Courier New", Courier, monospace;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .screenplay-dialogue {
+    font-family: "Courier Prime", "Courier New", Courier, monospace;
+    padding-left: 2em;
+  }
+
+  /* Scrollbar styling — uses CSS variable per theme */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: oklch(var(--scrollbar-thumb, 0.25 0 0));
+    border-radius: 2px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(var(--scrollbar-thumb, 0.35 0 0));
+  }
+
+  /* Focus styles */
+  textarea:focus,
+  input:focus {
+    outline: none;
+  }
+
+  /* Textarea resize disable */
+  textarea {
+    resize: none;
+  }
+
+  /* contentEditable line placeholder */
+  .script-line:empty::before {
+    content: attr(data-placeholder);
+    color: oklch(0.35 0 0);
+    pointer-events: none;
+    font-style: italic;
+    font-weight: 400;
+    text-transform: none;
+    font-size: 13px;
+  }
+
+  /* Focus glow on active line */
+  .script-line:focus {
+    background: oklch(0.2 0 0 / 60%) !important;
+    filter: drop-shadow(0 0 5px oklch(var(--primary) / 50%));
+  }
+}
+
+/* ============================================
+   UTILITY: Hide scrollbar (used for horizontal toolbar)
+   ============================================ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ============================================
+   PRINT / PDF EXPORT STYLES
+   ============================================ */
+#print-target {
+  display: none;
+}
+
+@media print {
+  body > * {
+    display: none !important;
+  }
+  #print-target {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    color: black;
+    z-index: 9999;
+  }
+}
