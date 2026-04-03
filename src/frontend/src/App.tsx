@@ -13,6 +13,7 @@ import { BottomBar } from "./components/BottomBar";
 import { Editor } from "./components/Editor";
 import type { EditorHandle } from "./components/Editor";
 import { OutlinerDrawer } from "./components/OutlinerDrawer";
+import { PermissionManager } from "./components/PermissionManager";
 import { SettingsPanel } from "./components/SettingsPanel";
 import type { GlowColor } from "./components/SettingsPanel";
 import { Sidebar } from "./components/Sidebar";
@@ -22,6 +23,7 @@ import { useFileSystem } from "./hooks/useFileSystem";
 import { useTheme } from "./hooks/useTheme";
 import { useWritingMetrics } from "./hooks/useWritingMetrics";
 import type { Beat, ScriptLine, WritingMode } from "./types/document";
+import { saveFileBlob, sendNotification } from "./utils/capacitorBridge";
 import {
   extractCharactersFromLines,
   generatePrintHTML,
@@ -55,6 +57,11 @@ function computeWordCount(text: string): number {
 }
 
 export default function App() {
+  // Permissions / PWA gate — shown once on first load
+  const [permissionsReady, setPermissionsReady] = useState(
+    () => localStorage.getItem("writefy_permissions_asked") === "true",
+  );
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [outlinerOpen, setOutlinerOpen] = useState(false);
@@ -185,6 +192,11 @@ export default function App() {
             );
             if (ok) {
               setSyncStatus("saved");
+              // Notify user of successful background save via capacitorBridge
+              void sendNotification(
+                "Writefy Autosaved",
+                `Your script was saved to ${handle.name}`,
+              );
             } else {
               setSyncStatus("error");
               toast.warning(
@@ -300,16 +312,12 @@ export default function App() {
       currentProjectId: activeDocId,
       lastModified: new Date().toISOString(),
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = window.document.createElement("a");
     const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
-    a.href = url;
-    a.download = `writefy-backup-${ts}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    saveFileBlob(
+      `writefy-backup-${ts}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json",
+    );
     toast.success("Backup exported");
   }, [documents, activeDocId]);
 
@@ -581,6 +589,11 @@ export default function App() {
         color: isDay ? "#111111" : undefined,
       }}
     >
+      {/* Permission gate — shown once at first launch */}
+      {!permissionsReady && (
+        <PermissionManager onComplete={() => setPermissionsReady(true)} />
+      )}
+
       <Toaster
         position="top-right"
         toastOptions={{

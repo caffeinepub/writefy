@@ -1,10 +1,21 @@
-import { CheckCircle, Download, FolderOpen, Upload } from "lucide-react";
+import {
+  Bell,
+  CheckCircle,
+  Download,
+  FolderOpen,
+  Shield,
+  Upload,
+  Wifi,
+} from "lucide-react";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ThemeId } from "../hooks/useTheme";
 import { THEMES } from "../hooks/useTheme";
-import { requestFolder } from "../utils/storage";
+import {
+  checkNotificationPermission,
+  requestNotificationPermission,
+} from "../utils/capacitorBridge";
 
 export type GlowColor = "accent" | "white" | "gold" | "cyan";
 
@@ -51,6 +62,19 @@ export function SettingsPanel({
   onTestConnection,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Notification permission state (for Permissions section)
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission>(
+    checkNotificationPermission,
+  );
+  const [requestingNotif, setRequestingNotif] = useState(false);
+
+  const handleRequestNotif = useCallback(async () => {
+    setRequestingNotif(true);
+    const result = await requestNotificationPermission();
+    setNotifPerm(result);
+    setRequestingNotif(false);
+  }, []);
 
   const isDay = activeTheme === "high-contrast-day";
 
@@ -155,6 +179,166 @@ export function SettingsPanel({
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
+              {/* ── Permissions ── */}
+              <div className="mb-8">
+                <p
+                  className="text-[11px] font-bold uppercase tracking-widest mb-4"
+                  style={{ color: labelColor }}
+                >
+                  Permissions & PWA
+                </p>
+                <div className="flex flex-col gap-2">
+                  {/* Notification Permission */}
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      background: rowBg,
+                      border: `1px solid ${rowBorder}`,
+                    }}
+                    data-ocid="settings.panel"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Bell
+                          size={13}
+                          style={{
+                            color: isDay ? "#1565C0" : "oklch(var(--primary))",
+                          }}
+                        />
+                        <span
+                          className="text-[13px] font-medium"
+                          style={{ color: rowText }}
+                        >
+                          Notifications
+                        </span>
+                      </div>
+                      <span
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background:
+                            notifPerm === "granted"
+                              ? "oklch(0.48 0.17 145 / 20%)"
+                              : notifPerm === "denied"
+                                ? "oklch(0.50 0.22 20 / 20%)"
+                                : isDay
+                                  ? "#f0f0f0"
+                                  : "oklch(0.22 0 0)",
+                          color:
+                            notifPerm === "granted"
+                              ? "oklch(0.55 0.17 145)"
+                              : notifPerm === "denied"
+                                ? "oklch(0.55 0.22 20)"
+                                : rowSubText,
+                        }}
+                      >
+                        {notifPerm === "granted"
+                          ? "Granted"
+                          : notifPerm === "denied"
+                            ? "Denied"
+                            : "Not asked"}
+                      </span>
+                    </div>
+                    {notifPerm !== "granted" && (
+                      <button
+                        type="button"
+                        onClick={handleRequestNotif}
+                        disabled={requestingNotif || notifPerm === "denied"}
+                        className="w-full mt-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[12px] font-medium transition-colors"
+                        style={{
+                          background: isDay ? "#f0f0f0" : "oklch(0.18 0 0)",
+                          border: `1px solid ${rowBorder}`,
+                          color: notifPerm === "denied" ? rowSubText : rowText,
+                          cursor:
+                            notifPerm === "denied" ? "not-allowed" : "pointer",
+                          opacity: notifPerm === "denied" ? 0.5 : 1,
+                        }}
+                        data-ocid="settings.primary_button"
+                      >
+                        <Bell size={12} />
+                        {requestingNotif
+                          ? "Requesting…"
+                          : notifPerm === "denied"
+                            ? "Blocked — enable in browser"
+                            : "Request Notification Permission"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* PWA / Offline Status */}
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      background: rowBg,
+                      border: `1px solid ${rowBorder}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Wifi
+                        size={13}
+                        style={{
+                          color: isDay ? "#1565C0" : "oklch(var(--primary))",
+                        }}
+                      />
+                      <span
+                        className="text-[13px] font-medium"
+                        style={{ color: rowText }}
+                      >
+                        Offline / PWA
+                      </span>
+                      <span
+                        className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: isDay
+                            ? "#e8f5e9"
+                            : "oklch(0.48 0.17 145 / 15%)",
+                          color: isDay ? "#2e7d32" : "oklch(0.55 0.17 145)",
+                        }}
+                      >
+                        Active
+                      </span>
+                    </div>
+                    <p
+                      className="text-[11px] leading-relaxed"
+                      style={{ color: rowSubText }}
+                    >
+                      Service worker is caching all assets. The app loads
+                      instantly even in Airplane Mode.
+                    </p>
+                  </div>
+
+                  {/* Shield / Install note */}
+                  <div
+                    className="rounded-xl p-4"
+                    style={{
+                      background: rowBg,
+                      border: `1px solid ${rowBorder}`,
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Shield
+                        size={13}
+                        style={{
+                          color: isDay ? "#1565C0" : "oklch(var(--primary))",
+                        }}
+                      />
+                      <span
+                        className="text-[13px] font-medium"
+                        style={{ color: rowText }}
+                      >
+                        Install as App
+                      </span>
+                    </div>
+                    <p
+                      className="text-[11px] leading-relaxed"
+                      style={{ color: rowSubText }}
+                    >
+                      On Android Chrome, tap the menu → "Add to Home screen" to
+                      install Writefy as a native-feeling app.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* ── Data & Backup ── */}
               <div className="mb-8">
                 <p
