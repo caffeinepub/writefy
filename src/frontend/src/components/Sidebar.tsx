@@ -152,7 +152,7 @@ export function Sidebar({
                   data-ocid={`sidebar.item.${i + 1}`}
                   className="relative group mb-0.5"
                 >
-                  {/* Full-width click target for row selection */}
+                  {/* Full-width click target — z-index 3 ensures it captures all clicks on the card */}
                   {!isRenaming && (
                     <button
                       type="button"
@@ -161,13 +161,13 @@ export function Sidebar({
                       style={{
                         background: "transparent",
                         border: "none",
-                        zIndex: 0,
+                        zIndex: 3,
                       }}
                       onClick={() => {
                         onSelectDoc(doc.id);
                         onMobileClose?.();
                       }}
-                      data-ocid={"sidebar.button"}
+                      data-ocid="sidebar.button"
                     />
                   )}
 
@@ -180,6 +180,8 @@ export function Sidebar({
                         : "transparent",
                       userSelect: "none",
                       position: "relative",
+                      zIndex: 2,
+                      pointerEvents: "none",
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive)
@@ -199,14 +201,12 @@ export function Sidebar({
                         color: isActive
                           ? "oklch(0.08 0 0)"
                           : "oklch(var(--muted-foreground, 0.55 0 0))",
-                        position: "relative",
-                        zIndex: 1,
                         pointerEvents: "none",
                       }}
                     />
                     <div
                       className="flex-1 min-w-0"
-                      style={{ position: "relative", zIndex: 1 }}
+                      style={{ pointerEvents: "none" }}
                     >
                       {isRenaming ? (
                         <input
@@ -227,6 +227,7 @@ export function Sidebar({
                               ? "oklch(0.08 0 0)"
                               : "oklch(0.92 0 0)",
                             borderBottom: "1px solid oklch(var(--primary))",
+                            pointerEvents: "auto",
                           }}
                           data-ocid="sidebar.input"
                         />
@@ -256,12 +257,13 @@ export function Sidebar({
                       )}
                     </div>
 
-                    {/* 3-dot menu — stops propagation so card click still fires */}
+                    {/* 3-dot menu — must stay interactive (pointerEvents: auto, zIndex above click target) */}
                     {!isRenaming && (
                       <div
                         style={{
                           position: "relative",
-                          zIndex: 2,
+                          zIndex: 4,
+                          pointerEvents: "auto",
                           flexShrink: 0,
                         }}
                       >

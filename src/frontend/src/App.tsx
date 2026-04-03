@@ -30,14 +30,15 @@ import {
   type SyncStatus,
   debounce,
   loadFromIDB,
-  readFromFolder,
+  persistFolderHandle,
   requestFolder,
+  restoreFolderHandle,
   saveToFolder,
   saveToIDB,
 } from "./utils/storage";
 
 const BACKUP_KEY = "writefy_backup";
-const BACKUP_FILENAME = "writefy-backup.json";
+const BACKUP_FILENAME = "naksha_master_data.json";
 
 function computeReadTime(text: string): string {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
@@ -58,6 +59,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [outlinerOpen, setOutlinerOpen] = useState(false);
   const [stickyKeyboard, setStickyKeyboard] = useState(false);
+  const [editorView, setEditorView] = useState<"write" | "outline">("write");
 
   // Dual-layer storage state
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
@@ -135,6 +137,7 @@ export default function App() {
 
   // ── Dual-Layer Auto-Save (debounced 2s) ────────────────────────
   const debouncedSaveRef = useRef<((...args: any[]) => void) | null>(null);
+  const handleLinkFolderRef = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     debouncedSaveRef.current = debounce(
@@ -162,6 +165,7 @@ export default function App() {
         };
 
         // Layer 1: IndexedDB
+        setSyncStatus("syncing");
         try {
           await saveToIDB(BACKUP_KEY, payload);
           setSyncStatus("memory");
@@ -183,9 +187,31 @@ export default function App() {
               setSyncStatus("saved");
             } else {
               setSyncStatus("error");
+              toast.warning(
+                "Warning: Master Folder moved. Using Internal Backup.",
+                {
+                  action: {
+                    label: "Re-link",
+                    onClick: () => {
+                      void handleLinkFolderRef.current?.();
+                    },
+                  },
+                  duration: 8000,
+                },
+              );
             }
           } catch {
             setSyncStatus("error");
+            toast.warning(
+              "Warning: Master Folder moved. Using Internal Backup.",
+              {
+                action: {
+                  label: "Re-link",
+                  onClick: () => handleLinkFolderRef.current?.(),
+                },
+                duration: 8000,
+              },
+            );
           }
         }
       },
@@ -326,6 +352,8 @@ export default function App() {
     const handle = await requestFolder();
     if (handle) {
       setFolderHandle(handle);
+      // Persist folder handle so it survives page reload
+      await persistFolderHandle(handle);
       // Also update the legacy fileSystem hook for per-file saves
       await fileSystem.requestFolder();
       toast.success(`Linked to folder: ${handle.name}`);
@@ -334,6 +362,39 @@ export default function App() {
       }
     }
   }, [fileSystem, activeDocument]);
+
+  // Keep ref in sync with the latest handleLinkFolder
+  useEffect(() => {
+    handleLinkFolderRef.current = handleLinkFolder;
+  }, [handleLinkFolder]);
+
+  // ── Test Connection ────────────────────────────────────────────────────
+  const handleTestConnection = useCallback(async () => {
+    if (!folderHandle) {
+      toast.error("No folder linked. Please link a folder first.");
+      return;
+    }
+    try {
+      const testContent = JSON.stringify({ test: true, ts: Date.now() });
+      // @ts-ignore
+      const testFileHandle = await folderHandle.getFileHandle(
+        "_writefy_test.tmp",
+        { create: true },
+      );
+      // @ts-ignore
+      const writable = await testFileHandle.createWritable();
+      await writable.write(testContent);
+      await writable.close();
+      // Delete test file
+      // @ts-ignore
+      await folderHandle.removeEntry("_writefy_test.tmp");
+      toast.success(
+        `Storage Verified: All systems synced to ${folderHandle.name}`,
+      );
+    } catch {
+      toast.error("Connection test failed. Check folder permissions.");
+    }
+  }, [folderHandle]);
 
   // ── Export helpers ─────────────────────────────────────
   const handleExportTxt = useCallback(
@@ -580,6 +641,7 @@ export default function App() {
                 glowColor={glowColor}
                 glowTransparency={glowTransparency}
                 activeTheme={activeTheme}
+                onViewChange={setEditorView}
               />
             ) : (
               <div
@@ -650,6 +712,7 @@ export default function App() {
           etaLabel={metrics.etaLabel}
           onExportPdf={() => handleExportPdf()}
           onExportTxt={() => handleExportTxt()}
+          isWriting={editorView === "write"}
         />
       )}
 
@@ -696,6 +759,7 @@ export default function App() {
         onLinkFolder={handleLinkFolder}
         folderName={fileSystem.folderName ?? folderHandle?.name ?? null}
         isFileSystemSupported={fileSystem.isSupported}
+        onTestConnection={handleTestConnection}
       />
 
       {/* Safety Delete Dialog */}

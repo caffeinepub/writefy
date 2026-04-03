@@ -75,6 +75,7 @@ interface BottomBarProps {
   etaLabel: string;
   onExportPdf: () => void;
   onExportTxt: () => void;
+  isWriting?: boolean;
 }
 
 export function BottomBar({
@@ -96,6 +97,7 @@ export function BottomBar({
   etaLabel,
   onExportPdf,
   onExportTxt,
+  isWriting = true,
 }: BottomBarProps) {
   const [charOpen, setCharOpen] = useState(false);
   const [episodeOpen, setEpisodeOpen] = useState(false);
@@ -564,44 +566,46 @@ export function BottomBar({
         </DropdownMenu>
       </div>
 
-      {/* Mode toggle */}
-      <div
-        className="flex items-center rounded-full overflow-hidden flex-shrink-0"
-        style={{ border: "1px solid oklch(0.22 0 0)" }}
-      >
-        <button
-          type="button"
-          onClick={() => onModeChange("screenplay")}
-          className="px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase transition-colors"
-          style={{
-            background:
-              mode === "screenplay" ? "oklch(var(--primary))" : "transparent",
-            color:
-              mode === "screenplay"
-                ? "oklch(var(--primary-foreground))"
-                : "oklch(0.48 0 0)",
-          }}
-          data-ocid="editor.toggle"
+      {/* Mode toggle — only visible when actively writing (not in outline/project views) */}
+      {isWriting !== false && (
+        <div
+          className="flex items-center rounded-full overflow-hidden flex-shrink-0"
+          style={{ border: "1px solid oklch(0.22 0 0)" }}
         >
-          Screenplay
-        </button>
-        <button
-          type="button"
-          onClick={() => onModeChange("novel")}
-          className="px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase transition-colors"
-          style={{
-            background:
-              mode === "novel" ? "oklch(var(--primary))" : "transparent",
-            color:
-              mode === "novel"
-                ? "oklch(var(--primary-foreground))"
-                : "oklch(0.48 0 0)",
-          }}
-          data-ocid="editor.toggle"
-        >
-          Novel
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => onModeChange("screenplay")}
+            className="px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase transition-colors"
+            style={{
+              background:
+                mode === "screenplay" ? "oklch(var(--primary))" : "transparent",
+              color:
+                mode === "screenplay"
+                  ? "oklch(var(--primary-foreground))"
+                  : "oklch(0.48 0 0)",
+            }}
+            data-ocid="editor.toggle"
+          >
+            Screenplay
+          </button>
+          <button
+            type="button"
+            onClick={() => onModeChange("novel")}
+            className="px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase transition-colors"
+            style={{
+              background:
+                mode === "novel" ? "oklch(var(--primary))" : "transparent",
+              color:
+                mode === "novel"
+                  ? "oklch(var(--primary-foreground))"
+                  : "oklch(0.48 0 0)",
+            }}
+            data-ocid="editor.toggle"
+          >
+            Novel
+          </button>
+        </div>
+      )}
     </footer>
   );
 }

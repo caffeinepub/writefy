@@ -3,7 +3,7 @@
 // Dual-layer persistence: IndexedDB + File System Access API
 // ============================================================
 
-export type SyncStatus = "saved" | "memory" | "error" | "idle";
+export type SyncStatus = "saved" | "memory" | "error" | "idle" | "syncing";
 
 // ── IndexedDB wrapper ──────────────────────────────────────
 
@@ -102,6 +102,33 @@ export async function readFromFolder(
     // @ts-ignore – File System Access API
     const file = await fileHandle.getFile();
     return await file.text();
+  } catch {
+    return null;
+  }
+}
+
+// ── Folder handle persistence (survive page reload) ──────
+
+const FOLDER_HANDLE_KEY = "writefy_folder_handle";
+
+export async function persistFolderHandle(
+  handle: FileSystemDirectoryHandle,
+): Promise<void> {
+  await saveToIDB(FOLDER_HANDLE_KEY, handle);
+}
+
+export async function restoreFolderHandle(): Promise<FileSystemDirectoryHandle | null> {
+  const handle =
+    await loadFromIDB<FileSystemDirectoryHandle>(FOLDER_HANDLE_KEY);
+  if (!handle) return null;
+  try {
+    // @ts-ignore
+    const perm = await handle.queryPermission({ mode: "readwrite" });
+    if (perm === "granted") return handle;
+    // @ts-ignore
+    const req = await handle.requestPermission({ mode: "readwrite" });
+    if (req === "granted") return handle;
+    return null;
   } catch {
     return null;
   }

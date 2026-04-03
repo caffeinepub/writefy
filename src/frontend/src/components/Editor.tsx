@@ -39,6 +39,7 @@ interface EditorProps {
   glowColor?: GlowColor;
   glowTransparency?: number;
   activeTheme?: string;
+  onViewChange?: (view: "write" | "outline") => void;
 }
 
 // Generate stable line ID
@@ -297,6 +298,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     glowColor = "accent",
     glowTransparency = 60,
     activeTheme = "",
+    onViewChange,
   },
   ref,
 ) {
@@ -683,6 +685,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   const handleScrollToSlugline = useCallback(
     (text: string) => {
       setActiveView("write");
+      onViewChange?.("write");
       setTimeout(() => {
         const idx = lines.findIndex((l) => l.text.trim() === text.trim());
         if (idx >= 0) {
@@ -695,7 +698,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         }
       }, 50);
     },
-    [lines],
+    [lines, onViewChange],
   );
 
   const activeType = lines[activeLineIndex]?.type ?? "action";
@@ -727,7 +730,11 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
             <button
               type="button"
               key={el}
-              onClick={() => setLineType(activeLineIndex, el)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setLineType(activeLineIndex, el);
+                focusLine(activeLineIndex, false);
+              }}
               className="transition-colors"
               style={{
                 flexShrink: 0,
@@ -838,7 +845,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         <div className="flex items-center px-10">
           <button
             type="button"
-            onClick={() => setActiveView("write")}
+            onClick={() => {
+              setActiveView("write");
+              onViewChange?.("write");
+            }}
             className="px-3 py-2.5 text-[12px] font-semibold transition-colors flex-shrink-0"
             style={{
               color:
@@ -856,7 +866,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
           </button>
           <button
             type="button"
-            onClick={() => setActiveView("outline")}
+            onClick={() => {
+              setActiveView("outline");
+              onViewChange?.("outline");
+            }}
             className="px-3 py-2.5 text-[12px] font-semibold transition-colors flex-shrink-0"
             style={{
               color:

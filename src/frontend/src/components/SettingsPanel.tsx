@@ -1,4 +1,4 @@
-import { Download, FolderOpen, Upload } from "lucide-react";
+import { CheckCircle, Download, FolderOpen, Upload } from "lucide-react";
 import { X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRef } from "react";
@@ -27,6 +27,7 @@ interface SettingsPanelProps {
   onLinkFolder?: () => void;
   folderName?: string | null;
   isFileSystemSupported?: boolean;
+  onTestConnection?: () => void;
 }
 
 export function SettingsPanel({
@@ -47,6 +48,7 @@ export function SettingsPanel({
   onLinkFolder,
   folderName,
   isFileSystemSupported,
+  onTestConnection,
 }: SettingsPanelProps) {
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -263,6 +265,11 @@ export function SettingsPanel({
                             : "oklch(var(--primary))"
                           : rowText,
                         cursor: "pointer",
+                        boxShadow: folderName
+                          ? isDay
+                            ? "0 0 10px rgba(21,101,192,0.15), 0 0 20px rgba(21,101,192,0.08)"
+                            : "0 0 10px oklch(var(--primary) / 25%), 0 0 20px oklch(var(--primary) / 10%)"
+                          : "none",
                       }}
                       data-ocid="settings.button"
                     >
@@ -270,7 +277,15 @@ export function SettingsPanel({
                       {folderName ? (
                         <>
                           Linked:{" "}
-                          <span className="font-semibold ml-1 truncate max-w-[140px]">
+                          <span
+                            className="font-bold ml-1 truncate max-w-[140px]"
+                            style={{
+                              color: isDay
+                                ? "#1565C0"
+                                : "oklch(var(--primary))",
+                              fontWeight: 700,
+                            }}
+                          >
                             {folderName}
                           </span>
                         </>
@@ -282,6 +297,48 @@ export function SettingsPanel({
                         style={{ color: rowSubText }}
                       >
                         {folderName ? "change" : "auto-save"}
+                      </span>
+                    </button>
+                  )}
+
+                  {/* Test Connection button */}
+                  {isFileSystemSupported && folderName && (
+                    <button
+                      type="button"
+                      onClick={onTestConnection}
+                      className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl text-[13px] font-medium transition-colors"
+                      style={{
+                        background: rowBg,
+                        border: `1px solid ${rowBorder}`,
+                        color: rowText,
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = isDay
+                          ? "#1565C0"
+                          : "oklch(var(--primary) / 40%)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = rowBorder;
+                      }}
+                      data-ocid="settings.button"
+                    >
+                      <CheckCircle
+                        size={14}
+                        style={{
+                          color: isDay ? "#1565C0" : "oklch(var(--primary))",
+                        }}
+                      />
+                      Test Connection
+                      <span
+                        className="ml-auto text-[10px]"
+                        style={{ color: rowSubText }}
+                      >
+                        verify
                       </span>
                     </button>
                   )}
